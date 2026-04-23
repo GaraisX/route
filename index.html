@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maršruta ģenerators — Latvian Routes</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:       #2d6a4f;
+      --green-mid:   #40916c;
+      --green-pale:  #d8f3dc;
+      --green-bg:    #f0faf3;
+      --text:        #111827;
+      --muted:       #6b7280;
+      --border:      #e5e7eb;
+      --radius:      12px;
+      --shadow:      0 2px 20px rgba(0,0,0,0.07);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7f9;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo-mark {
+      width: 34px; height: 34px;
+      background: var(--green);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-text { font-size: 17px; font-weight: 700; color: var(--green); letter-spacing: -0.3px; }
+    .logo-dot  { color: var(--green-mid); }
+
+    /* ── Container ── */
+    .container { max-width: 660px; margin: 0 auto; padding: 44px 20px 80px; }
+
+    /* ── Step indicator ── */
+    .steps {
+      display: flex; align-items: center;
+      margin-bottom: 40px;
+      overflow-x: auto; padding-bottom: 2px;
+    }
+    .step { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--border); color: var(--muted);
+      font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.3s, color 0.3s;
+    }
+    .step-label { font-size: 13px; color: var(--muted); font-weight: 500; transition: color 0.3s; }
+    .step.active .step-num  { background: var(--green); color: #fff; }
+    .step.active .step-label { color: var(--text); font-weight: 600; }
+    .step.done   .step-num  { background: var(--green); color: #fff; }
+    .step.done   .step-label { color: var(--green); }
+    .step-sep { flex-shrink: 0; margin: 0 14px; color: var(--border); font-size: 14px; }
+
+    /* ── Sections ── */
+    .section { display: none; opacity: 0; transform: translateY(16px); transition: opacity 0.35s ease, transform 0.35s ease; }
+    .section.active  { display: block; }
+    .section.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── Typography ── */
+    h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+    h2 { font-size: 22px; font-weight: 700; }
+    .subtitle { font-size: 15px; color: var(--muted); line-height: 1.6; margin-bottom: 32px; }
+
+    /* ── Search card ── */
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px;
+    }
+    .input-row { display: flex; gap: 10px; }
+    input[type="text"] {
+      flex: 1; padding: 13px 16px;
+      border: 2px solid var(--border); border-radius: 8px;
+      font-size: 15px; color: var(--text); outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus   { border-color: var(--green); }
+    input[type="text"]::placeholder { color: #9ca3af; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      background: var(--green); color: #fff;
+      border: none; padding: 13px 22px;
+      border-radius: 8px; font-size: 15px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover    { background: var(--green-mid); }
+    .btn-primary:active   { transform: scale(0.97); }
+    .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+
+    .btn-outline {
+      background: #fff; color: var(--green);
+      border: 2px solid var(--green);
+      padding: 11px 18px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-outline:hover { background: var(--green-bg); }
+
+    .btn-back {
+      background: none; border: none; padding: 0;
+      color: var(--muted); font-size: 14px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-bottom: 24px; transition: color 0.2s;
+    }
+    .btn-back:hover { color: var(--text); }
+
+    /* ── Loading ── */
+    .loader-wrap {
+      background: #fff; border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column;
+      align-items: center; gap: 14px; padding: 52px 24px;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--green-pale);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text { font-size: 14px; color: var(--muted); }
+
+    /* ── POI list ── */
+    .poi-topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+    }
+    .badge {
+      font-size: 13px; font-weight: 600;
+      padding: 5px 14px; border-radius: 20px;
+      background: var(--border); color: var(--muted);
+      transition: background 0.2s, color 0.2s;
+    }
+    .badge.active { background: var(--green-pale); color: var(--green); }
+
+    .poi-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+
+    .poi-card {
+      background: #fff; border: 2px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; user-select: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .poi-card:hover          { border-color: var(--green-mid); box-shadow: 0 2px 12px rgba(45,106,79,0.1); }
+    .poi-card.selected       { border-color: var(--green); background: var(--green-bg); }
+    .poi-card.selected:hover { border-color: var(--green); }
+
+    .check-box {
+      width: 22px; height: 22px; flex-shrink: 0;
+      border: 2px solid var(--border); border-radius: 6px;
+      background: #fff; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .poi-card.selected .check-box { background: var(--green); border-color: var(--green); }
+    .check-box svg { opacity: 0; transition: opacity 0.15s; }
+    .poi-card.selected .check-box svg { opacity: 1; }
+
+    .poi-info { flex: 1; min-width: 0; }
+    .poi-name { font-weight: 600; font-size: 15px; margin-bottom: 5px; }
+    .poi-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .poi-dist { font-size: 13px; color: var(--muted); }
+    .tag {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+    }
+    .tag-ors    { background: #dbeafe; color: #1d4ed8; }
+    .tag-vietas { background: #fef9c3; color: #854d0e; }
+    .poi-type { font-size: 12px; color: var(--muted); }
+
+    .actions-bar {
+      display: flex; justify-content: flex-end;
+      align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+
+    /* ── Result ── */
+    .result-hero {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 24px;
+    }
+    .result-icon {
+      width: 48px; height: 48px; flex-shrink: 0;
+      background: var(--green-pale); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 20px; }
+    .stat-card {
+      background: #fff; border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 20px 12px; text-align: center;
+    }
+    .stat-val   { font-size: 26px; font-weight: 800; color: var(--green); margin-bottom: 4px; }
+    .stat-label { font-size: 11px; color: var(--muted); font-weight: 600;
+                  text-transform: uppercase; letter-spacing: 0.6px; }
+
+    .waypoints-card {
+      background: #fff; border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px;
+    }
+    .waypoints-card h3 {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 14px;
+    }
+    .wp-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .wp-item:last-child { border-bottom: none; }
+    .wp-num  { font-size: 12px; font-weight: 700; color: var(--muted); width: 18px; text-align: right; flex-shrink: 0; }
+    .wp-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .wp-name { font-size: 14px; flex: 1; }
+    .wp-dist { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+
+    .map-box {
+      background: var(--green-pale);
+      border: 2px dashed rgba(45,106,79,0.3);
+      border-radius: var(--radius);
+      height: 200px; margin-bottom: 16px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      color: var(--green);
+    }
+    .map-box p { font-size: 13px; opacity: 0.65; }
+
+    .btn-download {
+      width: 100%; background: var(--green); color: #fff;
+      border: none; padding: 16px; border-radius: 8px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      transition: background 0.2s;
+    }
+    .btn-download:hover { background: var(--green-mid); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1f2937; color: #fff;
+      padding: 11px 20px; border-radius: 8px;
+      font-size: 14px; font-weight: 500;
+      transition: transform 0.3s ease;
+      z-index: 50; pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Responsive ── */
+    @media (max-width: 520px) {
+      h1 { font-size: 24px; }
+      h2 { font-size: 19px; }
+      .input-row { flex-direction: column; }
+      .stats { gap: 8px; }
+      .stat-val { font-size: 22px; }
+      .stat-card { padding: 14px 8px; }
+      .container { padding: 28px 14px 64px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 17l4-8 4 4 3-6 4 10"/>
+    </svg>
+  </div>
+  <span class="logo-text">Latvian<span class="logo-dot"> Routes</span></span>
+</header>
+
+<main class="container">
+
+  <!-- Step indicator -->
+  <div class="steps" id="steps">
+    <div class="step active" id="step1">
+      <div class="step-num">1</div>
+      <span class="step-label">Meklēt</span>
+    </div>
+    <span class="step-sep">→</span>
+    <div class="step" id="step2">
+      <div class="step-num">2</div>
+      <span class="step-label">Izvēlēties punktus</span>
+    </div>
+    <span class="step-sep">→</span>
+    <div class="step" id="step3">
+      <div class="step-num">3</div>
+      <span class="step-label">Maršruts</span>
+    </div>
+  </div>
+
+  <!-- ── Section 1: Search ── -->
+  <div class="section" id="sec-search">
+    <h1>Maršruta ģenerators</h1>
+    <p class="subtitle">Ievadi Latvijas vietas nosaukumu — mēs atrastu tuvākos apskates punktus un sagatavosim tavas pastaigas maršrutu.</p>
+
+    <div class="card">
+      <div class="input-row">
+        <input type="text" id="loc-input" placeholder="Ievadi vietas nosaukumu, piem. Cēsis" autocomplete="off" />
+        <button class="btn-primary" id="search-btn" onclick="doSearch()">Meklēt punktus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 2: POI selection ── -->
+  <div class="section" id="sec-poi">
+    <button class="btn-back" onclick="goBack('search')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      Atpakaļ
+    </button>
+
+    <div id="poi-loading" class="loader-wrap" style="display:none">
+      <div class="spinner"></div>
+      <p class="loader-text" id="loader-text">Meklē punktus…</p>
+    </div>
+
+    <div id="poi-content" style="display:none">
+      <div class="poi-topbar">
+        <h2 id="poi-heading">Izvēlies apskates punktus</h2>
+        <div class="badge" id="sel-badge">Izvēlēti: 0 punkti</div>
+      </div>
+      <div class="poi-list" id="poi-list"></div>
+      <div class="actions-bar">
+        <button class="btn-outline" onclick="toggleAll()">Izvēlēties visus</button>
+        <button class="btn-primary" id="route-btn" onclick="buildRoute()" disabled>Izveidot maršrutu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 3: Result ── -->
+  <div class="section" id="sec-result">
+    <button class="btn-back" onclick="goBack('poi')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      Mainīt punktus
+    </button>
+
+    <div id="route-loading" class="loader-wrap" style="display:none">
+      <div class="spinner"></div>
+      <p class="loader-text">Aprēķina maršrutu…</p>
+    </div>
+
+    <div id="route-content" style="display:none">
+      <div class="result-hero">
+        <div class="result-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2d6a4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <h2>Maršruts gatavs</h2>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-val" id="r-dist">—</div>
+          <div class="stat-label">km garums</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="r-dur">—</div>
+          <div class="stat-label">min kājām</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="r-pts">—</div>
+          <div class="stat-label">punkti</div>
+        </div>
+      </div>
+
+      <div class="waypoints-card">
+        <h3>Maršruta punkti</h3>
+        <div id="r-waypoints"></div>
+      </div>
+
+      <div class="map-box" id="map-placeholder">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#2d6a4f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.55">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+          <line x1="8" y1="2" x2="8" y2="18"/>
+          <line x1="16" y1="6" x2="16" y2="22"/>
+        </svg>
+        <p>Kartes skats — drīzumā</p>
+      </div>
+
+      <button class="btn-download" onclick="downloadGPX()">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Lejupielādēt GPX failu
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ── Mock data ── */
+  const DB = {
+    cēsis: [
+      { id:1, name:"Cēsu pils komplekss",               dist:0.3, src:"vietas", type:"Arhitektūra",      lat:57.3121, lng:25.2754 },
+      { id:2, name:"Cēsu vēstures muzejs",              dist:0.5, src:"ors",    type:"Muzejs",           lat:57.3135, lng:25.2780 },
+      { id:3, name:"Rožu laukums",                      dist:0.2, src:"vietas", type:"Pilsētvide",       lat:57.3112, lng:25.2741 },
+      { id:4, name:"Sv. Jāņa evaņģēliski luteriskā baznīca", dist:0.4, src:"ors", type:"Reliģiskā vieta", lat:57.3128, lng:25.2760 },
+      { id:5, name:"Gaujas nacionālais parks",          dist:2.1, src:"ors",    type:"Dabas objekts",    lat:57.3200, lng:25.2900 },
+      { id:6, name:"Skatu tornis Žagarkalns",           dist:1.8, src:"vietas", type:"Skatu punkts",     lat:57.3180, lng:25.2870 },
+      { id:7, name:"Ārāja ezers",                       dist:1.3, src:"vietas", type:"Ūdeņi",            lat:57.3160, lng:25.2830 },
+      { id:8, name:"Vienkoča laiva pie Gaujas",         dist:2.4, src:"ors",    type:"Vēstures objekts", lat:57.3230, lng:25.2950 },
+    ],
+    rīga: [
+      { id:1, name:"Brīvības piemineklis",              dist:0.1, src:"vietas", type:"Piemineklis",      lat:56.9530, lng:24.1130 },
+      { id:2, name:"Vecrīgas akmens ielas",             dist:0.4, src:"ors",    type:"Vēsturiskā vieta", lat:56.9474, lng:24.1078 },
+      { id:3, name:"Rīgas Doms",                        dist:0.5, src:"vietas", type:"Reliģiskā vieta",  lat:56.9490, lng:24.1040 },
+      { id:4, name:"Latvijas Nacionālais muzejs",       dist:0.7, src:"ors",    type:"Muzejs",           lat:56.9513, lng:24.1155 },
+      { id:5, name:"Centrāltirgus",                     dist:0.9, src:"vietas", type:"Tirgus",           lat:56.9445, lng:24.1215 },
+      { id:6, name:"Bastejkalns",                       dist:0.3, src:"ors",    type:"Atpūtas vieta",    lat:56.9520, lng:24.1120 },
+      { id:7, name:"Jūgendstila kvartāls Alberta ielā", dist:1.2, src:"vietas", type:"Arhitektūra",     lat:56.9560, lng:24.1180 },
+    ],
+    sigulda: [
+      { id:1, name:"Turaidas pils",                     dist:2.3, src:"vietas", type:"Arhitektūra",      lat:57.1814, lng:24.8598 },
+      { id:2, name:"Siguldas pils drupas",              dist:0.4, src:"ors",    type:"Arhitektūra",      lat:57.1527, lng:24.8624 },
+      { id:3, name:"Gaujas ielejas skatu platforma",   dist:1.5, src:"vietas", type:"Skatu punkts",     lat:57.1600, lng:24.8700 },
+      { id:4, name:"Krimuldas muiža",                   dist:3.1, src:"ors",    type:"Kultūrvēsture",    lat:57.1670, lng:24.8760 },
+      { id:5, name:"Gutmaņa ala",                       dist:1.9, src:"vietas", type:"Dabas objekts",    lat:57.1690, lng:24.8780 },
+      { id:6, name:"Bobsleja un kamaniņu trase",        dist:0.8, src:"ors",    type:"Sports",           lat:57.1545, lng:24.8650 },
+      { id:7, name:"Paradīzes kalns",                   dist:1.2, src:"vietas", type:"Skatu punkts",     lat:57.1570, lng:24.8680 },
+    ],
+    jūrmala: [
+      { id:1, name:"Majoru promenāde",                  dist:0.2, src:"vietas", type:"Atpūtas vieta",    lat:56.9700, lng:23.7900 },
+      { id:2, name:"Kemeri nacionālais parks",          dist:6.1, src:"ors",    type:"Dabas objekts",    lat:56.9500, lng:23.6800 },
+      { id:3, name:"Jūrmalas pludmale",                 dist:0.3, src:"vietas", type:"Pludmale",         lat:56.9720, lng:23.7950 },
+      { id:4, name:"Jūrmalas atklātā estrāde",         dist:0.5, src:"ors",    type:"Kultūra",          lat:56.9690, lng:23.7870 },
+      { id:5, name:"Dzintari mežs",                     dist:1.0, src:"vietas", type:"Dabas taka",       lat:56.9660, lng:23.7800 },
+      { id:6, name:"Dubultu baznīca",                   dist:1.8, src:"ors",    type:"Reliģiskā vieta",  lat:56.9640, lng:23.7720 },
+    ],
+    kuldīga: [
+      { id:1, name:"Ventas rumba",                      dist:0.4, src:"vietas", type:"Dabas objekts",    lat:56.9671, lng:21.9714 },
+      { id:2, name:"Kuldīgas vecpilsēta",               dist:0.2, src:"ors",    type:"Vēsturiskā vieta", lat:56.9680, lng:21.9730 },
+      { id:3, name:"Aleksandra Trimdas muzejs",         dist:0.6, src:"vietas", type:"Muzejs",           lat:56.9660, lng:21.9700 },
+      { id:4, name:"Ģipša klints pie Ventas",           dist:1.2, src:"ors",    type:"Dabas objekts",    lat:56.9650, lng:21.9680 },
+      { id:5, name:"Kuldīgas pils drupas",              dist:0.3, src:"vietas", type:"Arhitektūra",      lat:56.9675, lng:21.9720 },
+      { id:6, name:"Pilsētas parks",                    dist:0.5, src:"ors",    type:"Atpūtas vieta",    lat:56.9655, lng:21.9745 },
+    ],
+    _default: [
+      { id:1, name:"Vecpilsētas laukums",               dist:0.2, src:"vietas", type:"Vēsturiskā vieta", lat:57.1500, lng:24.8600 },
+      { id:2, name:"Dabas taka \"Ģertrūdes\"",          dist:0.8, src:"ors",    type:"Dabas taka",       lat:57.1540, lng:24.8640 },
+      { id:3, name:"Pils drupas",                       dist:1.1, src:"vietas", type:"Arhitektūra",      lat:57.1480, lng:24.8570 },
+      { id:4, name:"Evaņģēliskā luterāņu baznīca",     dist:0.4, src:"ors",    type:"Reliģiskā vieta",  lat:57.1510, lng:24.8615 },
+      { id:5, name:"Ezermala un skatu platforma",       dist:1.6, src:"vietas", type:"Skatu punkts",     lat:57.1560, lng:24.8660 },
+      { id:6, name:"Amatniecības muzejs",               dist:0.6, src:"vietas", type:"Muzejs",           lat:57.1495, lng:24.8630 },
+      { id:7, name:"Pilsētas parks",                    dist:0.9, src:"ors",    type:"Atpūtas vieta",    lat:57.1545, lng:24.8650 },
+    ],
+  };
+
+  /* ── State ── */
+  let location = '';
+  let pois     = [];
+  let selected = new Set();
+
+  /* ── Helpers ── */
+  function getPOIs(q) {
+    const k = q.toLowerCase().trim();
+    for (const key of Object.keys(DB)) {
+      if (key !== '_default' && k.includes(key)) return DB[key];
+    }
+    return DB._default;
+  }
+
+  function show(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active','visible'));
+    const el = document.getElementById(id);
+    el.classList.add('active');
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+  }
+
+  function setSteps(stage) {
+    const order = ['search','poi','result'];
+    const idx   = order.indexOf(stage);
+    ['step1','step2','step3'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.classList.remove('active','done');
+      if      (i < idx)  el.classList.add('done');
+      else if (i === idx) el.classList.add('active');
+    });
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._tid);
+    t._tid = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  function xml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Badge ── */
+  function updateBadge() {
+    const n = selected.size;
+    const suffix = n === 1 ? 'punkts' : 'punkti';
+    const badge  = document.getElementById('sel-badge');
+    badge.textContent = `Izvēlēti: ${n} ${suffix}`;
+    badge.classList.toggle('active', n > 0);
+    document.getElementById('route-btn').disabled = n < 2;
+  }
+
+  /* ── Render POI cards ── */
+  function renderPOIs() {
+    document.getElementById('poi-list').innerHTML = pois.map(p => `
+      <div class="poi-card${selected.has(p.id) ? ' selected' : ''}" onclick="toggle(${p.id})" id="pc-${p.id}">
+        <div class="check-box">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1.5,6 4.5,9.5 10.5,2.5"/>
+          </svg>
+        </div>
+        <div class="poi-info">
+          <div class="poi-name">${p.name}</div>
+          <div class="poi-meta">
+            <span class="poi-dist">${p.dist} km no centra</span>
+            <span class="tag ${p.src === 'ors' ? 'tag-ors' : 'tag-vietas'}">${p.src === 'ors' ? 'ORS' : 'vietas.lv'}</span>
+            <span class="poi-type">${p.type}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    updateBadge();
+  }
+
+  /* ── Toggle single POI ── */
+  function toggle(id) {
+    selected.has(id) ? selected.delete(id) : selected.add(id);
+    const card = document.getElementById('pc-' + id);
+    card.classList.toggle('selected', selected.has(id));
+    updateBadge();
+  }
+
+  /* ── Toggle all ── */
+  function toggleAll() {
+    if (selected.size === pois.length) selected.clear();
+    else pois.forEach(p => selected.add(p.id));
+    renderPOIs();
+  }
+
+  /* ── Search ── */
+  function doSearch() {
+    const val = document.getElementById('loc-input').value.trim();
+    if (!val) { document.getElementById('loc-input').focus(); toast('Lūdzu ievadi vietas nosaukumu!'); return; }
+
+    location = val;
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true; btn.textContent = 'Meklē…';
+
+    setSteps('poi');
+    show('sec-poi');
+    document.getElementById('poi-loading').style.display = 'flex';
+    document.getElementById('poi-content').style.display = 'none';
+    document.getElementById('loader-text').textContent   = `Meklē punktus tuvāk „${location}"…`;
+
+    setTimeout(() => {
+      btn.disabled = false; btn.textContent = 'Meklēt punktus';
+      pois = getPOIs(location);
+      selected.clear();
+
+      document.getElementById('poi-heading').textContent = `Apskates punkti — ${location}`;
+      renderPOIs();
+
+      document.getElementById('poi-loading').style.display = 'none';
+      document.getElementById('poi-content').style.display = 'block';
+    }, 1300);
+  }
+
+  /* ── Build route ── */
+  function buildRoute() {
+    const btn = document.getElementById('route-btn');
+    btn.disabled = true; btn.textContent = 'Aprēķina…';
+
+    setSteps('result');
+    show('sec-result');
+    document.getElementById('route-loading').style.display = 'flex';
+    document.getElementById('route-content').style.display = 'none';
+
+    setTimeout(() => {
+      btn.disabled = false; btn.textContent = 'Izveidot maršrutu';
+
+      const pts  = pois.filter(p => selected.has(p.id));
+      const dist = (pts.reduce((a, p) => a + p.dist, 0) * 1.45).toFixed(1);
+      const dur  = Math.round((dist / 4.5) * 60);
+
+      document.getElementById('r-dist').textContent = dist;
+      document.getElementById('r-dur').textContent  = dur;
+      document.getElementById('r-pts').textContent  = pts.length;
+
+      document.getElementById('r-waypoints').innerHTML = pts.map((p, i) => `
+        <div class="wp-item">
+          <span class="wp-num">${i + 1}</span>
+          <span class="wp-dot"></span>
+          <span class="wp-name">${p.name}</span>
+          <span class="wp-dist">${p.dist} km</span>
+        </div>
+      `).join('');
+
+      document.getElementById('route-loading').style.display = 'none';
+      document.getElementById('route-content').style.display = 'block';
+    }, 1100);
+  }
+
+  /* ── GPX download ── */
+  function downloadGPX() {
+    const pts = pois.filter(p => selected.has(p.id));
+    const now = new Date().toISOString();
+
+    const wpts = pts.map(p =>
+      `  <wpt lat="${p.lat}" lon="${p.lng}">\n    <name>${xml(p.name)}</name>\n    <desc>${xml(p.type)}</desc>\n  </wpt>`
+    ).join('\n');
+
+    const trkpts = pts.map(p =>
+      `      <trkpt lat="${p.lat}" lon="${p.lng}"><name>${xml(p.name)}</name></trkpt>`
+    ).join('\n');
+
+    const gpx =
+`<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="latvianroutes.com" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Maršruts — ${xml(location)}</name>
+    <time>${now}</time>
+    <link href="https://latvianroutes.com"><text>Latvian Routes</text></link>
+  </metadata>
+${wpts}
+  <trk>
+    <name>Maršruts — ${xml(location)}</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`;
+
+    const blob = URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' }));
+    const a    = Object.assign(document.createElement('a'), { href: blob, download: `marsruts-${location.toLowerCase().replace(/\s+/g,'-')}.gpx` });
+    a.click();
+    URL.revokeObjectURL(blob);
+    toast('GPX fails lejupielādēts!');
+  }
+
+  /* ── Back navigation ── */
+  function goBack(to) {
+    if (to === 'search') { setSteps('search'); show('sec-search'); }
+    if (to === 'poi')    { setSteps('poi');    show('sec-poi'); }
+  }
+
+  /* ── Init ── */
+  document.getElementById('loc-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+  window.addEventListener('load', () => {
+    const s = document.getElementById('sec-search');
+    s.classList.add('active');
+    requestAnimationFrame(() => requestAnimationFrame(() => s.classList.add('visible')));
+  });
+</script>
+</body>
+</html>
